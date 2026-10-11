@@ -2,15 +2,16 @@ import os
 import json
 import time
 import subprocess
-from typing import Dict, Any, List
+from typing import Tuple, Dict, Any, List, Optional
 
 DEFAULT_LEDGER_DIR = os.path.expanduser("~/.local/state/toolgate/evidence_ledger")
 
-def get_ledger_dir() -> str:
-    os.makedirs(DEFAULT_LEDGER_DIR, exist_ok=True)
-    return DEFAULT_LEDGER_DIR
+def get_ledger_dir(custom_dir: Optional[str] = None) -> str:
+    path = custom_dir or DEFAULT_LEDGER_DIR
+    os.makedirs(path, exist_ok=True)
+    return path
 
-def record_evidence(task_name: str, claim: str, proof_command: str) -> Tuple_bool:
+def record_evidence(task_name: str, claim: str, proof_command: str, ledger_dir: Optional[str] = None) -> Tuple[bool, int, str, str]:
     """
     Challenges the agent 'Done' claim with verifiable command execution.
     """
@@ -35,19 +36,19 @@ def record_evidence(task_name: str, claim: str, proof_command: str) -> Tuple_boo
         "latency": dt
     }
 
-    record_file = os.path.join(get_ledger_dir(), f"evidence_{int(time.time())}.json")
+    record_file = os.path.join(get_ledger_dir(ledger_dir), f"evidence_{int(time.time() * 1000)}.json")
     with open(record_file, "w") as f:
         json.dump(entry, f, indent=2)
 
     return passed, res.returncode, res.stdout, res.stderr
 
-def list_evidence() -> List[Dict[str, Any]]:
-    ledger_dir = get_ledger_dir()
+def list_evidence(ledger_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+    target_dir = get_ledger_dir(ledger_dir)
     records = []
-    files = sorted(os.listdir(ledger_dir), reverse=True)
+    files = sorted(os.listdir(target_dir), reverse=True)
     for f in files[:20]:
         try:
-            with open(os.path.join(ledger_dir, f), "r") as fh:
+            with open(os.path.join(target_dir, f), "r") as fh:
                 records.append(json.load(fh))
         except Exception:
             pass
